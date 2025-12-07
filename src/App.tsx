@@ -1,9 +1,7 @@
-import { API_BASE_URL } from '@/api/client'
+import { ProjectsPage } from "@/pages/ProjectsPage";
 
 function App() {
-    console.log('API_BASE_URL:', API_BASE_URL)
-
-    return <h1>Taskboard Frontend</h1>
+    return <ProjectsPage />;
 }
 
-export default App
+export default App;
