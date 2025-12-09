@@ -1,86 +1,56 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { getProjectsPage } from "@/api/taskboardApi";
 import type { Project } from "@/types/Project";
+import type { Page } from "@/types/Page";
 
-type UseProjectsOptions = {
-    initialPage?: number;
-    initialSize?: number;
+type UseProjectsParams = {
+    page: number;
+    size: number;
 };
 
 type UseProjectsResult = {
-    projects: Project[];
-    page: number;
-    size: number;
-    totalPages: number;
+    data: Page<Project> | null;
     loading: boolean;
     error: string | null;
-    reload: () => void;
-    goToNextPage: () => void;
-    goToPreviousPage: () => void;
 };
 
-export const useProjects = (
-    options: UseProjectsOptions = {}
-): UseProjectsResult => {
-    const { initialPage = 0, initialSize = 10 } = options;
-
-    const [projects, setProjects] = useState<Project[]>([]);
-    const [page, setPage] = useState<number>(initialPage);
-    const [size, setSize] = useState<number>(initialSize);
-    const [totalPages, setTotalPages] = useState<number>(0);
+export const useProjects = ({ page, size }: UseProjectsParams): UseProjectsResult => {
+    const [data, setData] = useState<Page<Project> | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
 
-    const loadPage = useCallback(
-        async (targetPage: number, targetSize: number) => {
+    useEffect(() => {
+        let cancelled = false;
+
+        const load = async () => {
             try {
                 setLoading(true);
                 setError(null);
 
-                const response = await getProjectsPage(targetPage, targetSize);
+                const response = await getProjectsPage(page, size);
 
-                setProjects(response.content);
-                setTotalPages(response.totalPages);
-                setPage(response.number); // backend page number
-                setSize(response.size);
+                if (!cancelled) {
+                    setData(response);
+                }
             } catch (err) {
                 console.error("Error loading projects page:", err);
-                setError("Failed to load projects list.");
-                setProjects([]);
+                if (!cancelled) {
+                    setError("Failed to load projects list.");
+                    setData(null);
+                }
             } finally {
-                setLoading(false);
+                if (!cancelled) {
+                    setLoading(false);
+                }
             }
-        },
-        []
-    );
+        };
 
-    useEffect(() => {
-        void loadPage(initialPage, initialSize);
-    }, [initialPage, initialSize, loadPage]);
+        void load();
 
-    const reload = () => {
-        void loadPage(page, size);
-    };
+        return () => {
+            cancelled = true;
+        };
+    }, [page, size]);
 
-    const goToNextPage = () => {
-        if (page + 1 >= totalPages) return;
-        void loadPage(page + 1, size);
-    };
-
-    const goToPreviousPage = () => {
-        if (page === 0) return;
-        void loadPage(page - 1, size);
-    };
-
-    return {
-        projects,
-        page,
-        size,
-        totalPages,
-        loading,
-        error,
-        reload,
-        goToNextPage,
-        goToPreviousPage,
-    };
+    return { data, loading, error };
 };
